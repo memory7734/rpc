@@ -8,14 +8,13 @@ import com.memory7734.protocol.Task;
 import com.memory7734.rpc.master.MasterClient;
 import com.memory7734.rpc.master.MasterHandler;
 import com.memory7734.scheduler.server.Server;
+import io.netty.bootstrap.Bootstrap;
 import io.netty.bootstrap.ServerBootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +25,7 @@ import org.springframework.context.ApplicationContextAware;
 
 import java.net.InetSocketAddress;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
@@ -48,7 +48,13 @@ public class Client implements ApplicationContextAware, InitializingBean {
     private AtomicInteger roundRobin = new AtomicInteger(0);
     private volatile boolean isRuning = true;
 
-    private Client(){}
+    private String serverAddress;
+    private MasterClient masterClient = null;
+
+    private InetSocketAddress remotePeer;
+
+    private Client() {
+    }
 
     public static Client getInstance() {
         if (client == null) {
@@ -61,17 +67,20 @@ public class Client implements ApplicationContextAware, InitializingBean {
         return client;
     }
 
-
-    private String serverAddress;
-    private MasterClient masterClient = null;
-
     public Client(String serverAddress) {
         this.serverAddress = serverAddress;
+        String[] array = serverAddress.split(":");
+        if (array.length == 2) { // Should check IP and port
+            String host = array[0];
+            int port = Integer.parseInt(array[1]);
+            this.remotePeer = new InetSocketAddress(host, port);
+        }
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
         start();
+        Scanner scanner = new Scanner(System.in);
     }
 
 
@@ -81,42 +90,71 @@ public class Client implements ApplicationContextAware, InitializingBean {
     }
 
     public void start() throws Exception {
-        if (bossGroup == null && workerGroup == null) {
-            bossGroup = new NioEventLoopGroup();
-            workerGroup = new NioEventLoopGroup();
-            ServerBootstrap bootstrap = new ServerBootstrap();
-            bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-                    .childHandler(new ChannelInitializer<SocketChannel>() {
-                        @Override
-                        public void initChannel(SocketChannel channel) throws Exception {
-                            channel.pipeline()
-                                    .addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
-                                    .addLast(new Encoder(Task.class))
-                                    .addLast(new Decoder(Status.class))
-                                    .addLast(new ClientHandler());
+        threadPoolExecutor.submit(new Runnable() {
+            @Override
+            public void run() {
+                Bootstrap b = new Bootstrap();
+                b.group(eventLoopGroup)
+                        .channel(NioSocketChannel.class)
+                        .handler(new ChannelInitializer<SocketChannel>() {
+                            @Override
+                            protected void initChannel(SocketChannel ch) throws Exception {
+                                ChannelPipeline cp = ch.pipeline();
+                                cp.addLast(new Encoder(Task.class));
+                                cp.addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0));
+                                cp.addLast(new Decoder(Status.class));
+                                cp.addLast(new ClientHandler());
+                            }
+                        });
+
+                ChannelFuture channelFuture = b.connect(remotePeer);
+                channelFuture.addListener(new ChannelFutureListener() {
+                    @Override
+                    public void operationComplete(final ChannelFuture channelFuture) throws Exception {
+                        if (channelFuture.isSuccess()) {
+                            logger.debug("Successfully connect to remote slave. remote peer = " + remotePeer);
+                            ClientHandler handler = channelFuture.channel().pipeline().get(ClientHandler.class);
                         }
-                    })
-                    .option(ChannelOption.SO_BACKLOG, 128)
-                    .childOption(ChannelOption.SO_KEEPALIVE, true);
-
-            String[] array = serverAddress.split(":");
-            String host = array[0];
-            int port = Integer.parseInt(array[1]);
-
-            ChannelFuture future = bootstrap.bind(host, port).sync();
-            logger.info("Server started on port {}", port);
-
-            future.channel().closeFuture().sync();
-        }
+                    }
+                });
+            }
+        });
+//        if (bossGroup == null && workerGroup == null) {
+//            bossGroup = new NioEventLoopGroup();
+//            workerGroup = new NioEventLoopGroup();
+//            ServerBootstrap bootstrap = new ServerBootstrap();
+//            bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
+//                    .childHandler(new ChannelInitializer<SocketChannel>() {
+//                        @Override
+//                        public void initChannel(SocketChannel channel) throws Exception {
+//                            channel.pipeline()
+//                                    .addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
+//                                    .addLast(new Encoder(Task.class))
+//                                    .addLast(new Decoder(Status.class))
+//                                    .addLast(new ClientHandler());
+//                        }
+//                    })
+//                    .option(ChannelOption.SO_BACKLOG, 128)
+//                    .childOption(ChannelOption.SO_KEEPALIVE, true);
+//
+//            String[] array = serverAddress.split(":");
+//            String host = array[0];
+//            int port = Integer.parseInt(array[1]);
+//
+//            ChannelFuture future = bootstrap.bind(host, port).sync();
+//            logger.info("Server started on port {}", port);
+//
+//            future.channel().closeFuture().sync();
+//        }
     }
 
     public void stop() {
-        if (bossGroup != null) {
-            bossGroup.shutdownGracefully();
-        }
-        if (workerGroup != null) {
-            workerGroup.shutdownGracefully();
-        }
+//        if (bossGroup != null) {
+//            bossGroup.shutdownGracefully();
+//        }
+//        if (workerGroup != null) {
+//            workerGroup.shutdownGracefully();
+//        }
     }
 
     public static void submit(Runnable task) {

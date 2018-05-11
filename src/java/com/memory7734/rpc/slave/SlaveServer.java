@@ -45,14 +45,14 @@ public class SlaveServer implements ApplicationContextAware, InitializingBean {
     public SlaveServer(String serverAddress) {
         this.serverAddress = serverAddress;
         SlaveInfo info = new SlaveInfoImpl();
-        this.addService("SlaveInfo", info);
+        this.addService("com.memory7734.rpc.master.SlaveInfo", info);
     }
 
     public SlaveServer(String serverAddress, ServiceRegistry serviceRegistry) {
         this.serverAddress = serverAddress;
         this.serviceRegistry = serviceRegistry;
         SlaveInfo info = new SlaveInfoImpl();
-        this.addService("SlaveInfo", info);
+        this.addService("com.memory7734.rpc.master.SlaveInfo", info);
     }
 
     @Override

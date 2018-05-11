@@ -7,17 +7,12 @@
        http://www.springframework.org/schema/context
        http://www.springframework.org/schema/context/spring-context.xsd">
 
-    <context:component-scan base-package="com.memory7734.rpc.test.slave"/>
+    <context:component-scan base-package="com.memory7734.scheduler.*"/>
 
     <context:property-placeholder location="classpath:rpc.properties"/>
 
-    <bean id="serviceRegistry" class="com.memory7734.rpc.registry.ServiceRegistry">
-        <constructor-arg name="registryAddress" value="${registry.address}"/>
-    </bean>
-
-    <bean id="slaveServer" class="com.memory7734.rpc.slave.SlaveServer">
-        <constructor-arg name="serverAddress" value="${slave.address1}"/>
-        <constructor-arg name="serviceRegistry" ref="serviceRegistry"/>
+    <bean id="client" class="com.memory7734.scheduler.client.Client">
+        <constructor-arg name="serverAddress" value="${server.address}"/>
     </bean>
 
 </beans>

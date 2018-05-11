@@ -28,27 +28,31 @@ public class ServerHandler extends SimpleChannelInboundHandler<Task> {
 
     @Override
     protected void channelRead0(final ChannelHandlerContext ctx, final Task task) throws Exception {
-        Server.submit(new Runnable() {
-            @Override
-            public void run() {
-                logger.debug("Receive Task " + task.getTaskGroup() + task.getTaskID());
-                Status status = new Status();
-                status.setTaskID(task.getTaskID());
-                status.setTaskGroup(task.getTaskGroup());
-//                try {
-//                    status.setResult(handle(task));
-//                } catch (Throwable throwable) {
-//                    status.setError(throwable.toString());
-//                    logger.error("Server Task handle request error", throwable);
-//                }
-                ctx.writeAndFlush(status).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        logger.debug("send status for task " + task.getTaskGroup() + task.getTaskID());
-                    }
-                });
-            }
-        });
+        logger.info("服务器收到了一个消息");
+        ctx.writeAndFlush("服务器收到了一个消息");
+//        Server.submit(new Runnable() {
+//            @Override
+//            public void run() {
+//                System.out.println("接到一个任务");
+//                logger.info("Receive Task " + task.getTaskGroup() + task.getTaskID());
+//                Status status = new Status();
+//                status.setTaskID(task.getTaskID());
+//                status.setTaskGroup(task.getTaskGroup());
+////                try {
+////                    status.setResult(handle(task));
+////                } catch (Throwable throwable) {
+////                    status.setError(throwable.toString());
+////                    logger.error("Server Task handle request error", throwable);
+////                }
+//                ctx.writeAndFlush(status).addListener(new ChannelFutureListener() {
+//                    @Override
+//                    public void operationComplete(ChannelFuture future) throws Exception {
+//                        System.out.println("发出一个反馈");
+//                        logger.info("send status for task " + task.getTaskGroup() + task.getTaskID());
+//                    }
+//                });
+//            }
+//        });
     }
 
     private Object handle(Task task) {

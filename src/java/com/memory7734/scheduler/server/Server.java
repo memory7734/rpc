@@ -2,6 +2,8 @@ package com.memory7734.scheduler.server;
 
 import com.memory7734.protocol.*;
 import com.memory7734.rpc.master.MasterClient;
+import com.memory7734.rpc.master.SlaveInfo;
+import com.memory7734.rpc.slave.SlaveService;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -91,10 +93,8 @@ public class Server implements ApplicationContextAware, InitializingBean {
             String[] array = serverAddress.split(":");
             String host = array[0];
             int port = Integer.parseInt(array[1]);
-
             ChannelFuture future = bootstrap.bind(host, port).sync();
             logger.info("Server started on port {}", port);
-
             future.channel().closeFuture().sync();
         }
     }

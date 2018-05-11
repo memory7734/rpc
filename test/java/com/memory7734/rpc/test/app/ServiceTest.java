@@ -2,6 +2,7 @@ package com.memory7734.rpc.test.app;
 
 import com.memory7734.rpc.master.MasterFuture;
 import com.memory7734.rpc.master.MasterClient;
+import com.memory7734.rpc.master.SlaveInfo;
 import com.memory7734.rpc.master.proxy.IAsyncObjectProxy;
 import com.memory7734.rpc.test.master.HelloService;
 import com.memory7734.rpc.test.master.Person;
@@ -32,14 +33,15 @@ public class ServiceTest {
     public void helloTest1() {
         HelloService helloService = masterClient.create(HelloService.class);
         String result = helloService.hello("World");
+        System.out.println(result);
         Assert.assertEquals("Hello! World", result);
     }
 
     @Test
     public void memory() {
 
-//        SlaveInfo helloService = masterClient.create(SlaveInfo.class);
-//        System.out.println("getFreeMemory结果为：" + helloService.getFreeMemory(""));
+        SlaveInfo helloService = masterClient.create(SlaveInfo.class);
+        System.out.println("getFreeMemory结果为：" + helloService.getFreeMemory(""));
 //        System.out.println("getMaxMemory结果为：" + helloService.getMaxMemory(""));
 //        System.out.println("getUsedMemory结果为：" + helloService.getUsedMemory(""));
 //        System.out.println("getProcessors结果为：" + helloService.getProcessors(""));
