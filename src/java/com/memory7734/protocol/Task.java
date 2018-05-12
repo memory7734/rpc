@@ -1,5 +1,6 @@
 package com.memory7734.protocol;
 
+import java.util.Arrays;
 import java.util.Date;
 
 public class Task {
@@ -65,5 +66,18 @@ public class Task {
 
     public void setParameters(Object[] parameters) {
         this.parameters = parameters;
+    }
+
+    @Override
+    public String toString() {
+        return "Task{" +
+                "taskGroup='" + taskGroup + '\'' +
+                ", taskID='" + taskID + '\'' +
+                ", uploadTime=" + uploadTime +
+                ", className='" + className + '\'' +
+                ", methodName='" + methodName + '\'' +
+                ", parameterTypes=" + Arrays.toString(parameterTypes) +
+                ", parameters=" + Arrays.toString(parameters) +
+                '}';
     }
 }

@@ -46,4 +46,15 @@ public class Status {
     public void setStatus(TaskStatus status) {
         this.status = status;
     }
+
+    @Override
+    public String toString() {
+        return "Status{" +
+                "taskGroup='" + taskGroup + '\'' +
+                ", taskID='" + taskID + '\'' +
+                ", error='" + error + '\'' +
+                ", result=" + result +
+                ", status=" + status +
+                '}';
+    }
 }

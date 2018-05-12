@@ -119,33 +119,6 @@ public class Client implements ApplicationContextAware, InitializingBean {
                 });
             }
         });
-//        if (bossGroup == null && workerGroup == null) {
-//            bossGroup = new NioEventLoopGroup();
-//            workerGroup = new NioEventLoopGroup();
-//            ServerBootstrap bootstrap = new ServerBootstrap();
-//            bootstrap.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
-//                    .childHandler(new ChannelInitializer<SocketChannel>() {
-//                        @Override
-//                        public void initChannel(SocketChannel channel) throws Exception {
-//                            channel.pipeline()
-//                                    .addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
-//                                    .addLast(new Encoder(Task.class))
-//                                    .addLast(new Decoder(Status.class))
-//                                    .addLast(new ClientHandler());
-//                        }
-//                    })
-//                    .option(ChannelOption.SO_BACKLOG, 128)
-//                    .childOption(ChannelOption.SO_KEEPALIVE, true);
-//
-//            String[] array = serverAddress.split(":");
-//            String host = array[0];
-//            int port = Integer.parseInt(array[1]);
-//
-//            ChannelFuture future = bootstrap.bind(host, port).sync();
-//            logger.info("Server started on port {}", port);
-//
-//            future.channel().closeFuture().sync();
-//        }
     }
 
     public void stop() {

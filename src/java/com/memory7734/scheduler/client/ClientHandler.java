@@ -28,25 +28,16 @@ public class ClientHandler extends SimpleChannelInboundHandler<Status> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         this.remotePeer = this.channel.remoteAddress();
-        logger.error("remotePeer是" + remotePeer);
-    }
-
-    @Override
-    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
-        super.channelRegistered(ctx);
-        this.channel = ctx.channel();
-    }
-
-    @Override
-    protected void channelRead0(ChannelHandlerContext ctx, Status status) throws Exception {
         Task task = new Task();
         task.setTaskGroup("group1");
         task.setTaskID("0001");
         task.setUploadTime(new Date());
 
-        task.setClassName("java.lang.String");
-        task.setMethodName("toString");
-
+        task.setClassName("com.memory7734.rpc.test.master.HelloService");
+        task.setMethodName("hello");
+        Object[] parameters = new Object[1];
+        parameters[0] = "王杰";
+        task.setParameters(parameters);
         Client.submit(new Runnable() {
             @Override
             public void run() {
@@ -60,6 +51,27 @@ public class ClientHandler extends SimpleChannelInboundHandler<Status> {
                 });
             }
         });
+    }
+
+    public void sendTask(Task task) {
+        channel.writeAndFlush(task).addListener(new ChannelFutureListener() {
+            @Override
+            public void operationComplete(ChannelFuture future) throws Exception {
+                logger.info("send task " + task.getTaskGroup() + task.getTaskID());
+            }
+        });
+    }
+
+    @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
+        this.channel = ctx.channel();
+    }
+
+    @Override
+    protected void channelRead0(ChannelHandlerContext ctx, Status status) throws Exception {
+        logger.info("Received a Status " + status.toString());
+
 
     }
 
