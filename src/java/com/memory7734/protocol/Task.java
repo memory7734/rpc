@@ -1,9 +1,13 @@
 package com.memory7734.protocol;
 
+import org.quartz.Trigger;
+
 import java.util.Arrays;
 import java.util.Date;
+import static org.quartz.TriggerBuilder.*;
 
 public class Task {
+    private String name;
     private String taskGroup;
     private String taskID;
     private Date uploadTime;
@@ -11,6 +15,23 @@ public class Task {
     private String methodName;
     private Class<?>[] parameterTypes;
     private Object[] parameters;
+    private Trigger trigger;
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public Trigger getTrigger() {
+        return trigger;
+    }
+
+    public void setTrigger(Trigger trigger) {
+        this.trigger = trigger;
+    }
 
     public String getTaskGroup() {
         return taskGroup;

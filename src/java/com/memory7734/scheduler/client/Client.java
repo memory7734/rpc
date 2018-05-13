@@ -24,6 +24,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 
 import java.net.InetSocketAddress;
+import java.util.Date;
 import java.util.Map;
 import java.util.Scanner;
 import java.util.concurrent.*;
@@ -31,21 +32,25 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.TriggerBuilder.newTrigger;
+
 public class Client implements ApplicationContextAware, InitializingBean {
     private static final Logger logger = LoggerFactory.getLogger(Client.class);
     private volatile static Client client;
+    private ClientHandler handler;
 
     private EventLoopGroup eventLoopGroup = new NioEventLoopGroup(4);
     private static ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(16, 16,
             600L, TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(65536));
 
-    private CopyOnWriteArrayList<MasterHandler> connectedHandlers = new CopyOnWriteArrayList<>();
-    private Map<InetSocketAddress, ClientHandler> connectedServerNodes = new ConcurrentHashMap<>();
+//    private CopyOnWriteArrayList<MasterHandler> connectedHandlers = new CopyOnWriteArrayList<>();
+//    private Map<InetSocketAddress, ClientHandler> connectedServerNodes = new ConcurrentHashMap<>();
 
-    private ReentrantLock lock = new ReentrantLock();
-    private Condition connected = lock.newCondition();
-    private long connectTimeoutMillis = 6000;
-    private AtomicInteger roundRobin = new AtomicInteger(0);
+//    private ReentrantLock lock = new ReentrantLock();
+//    private Condition connected = lock.newCondition();
+//    private long connectTimeoutMillis = 6000;
+//    private AtomicInteger roundRobin = new AtomicInteger(0);
     private volatile boolean isRuning = true;
 
     private String serverAddress;
@@ -75,12 +80,20 @@ public class Client implements ApplicationContextAware, InitializingBean {
             int port = Integer.parseInt(array[1]);
             this.remotePeer = new InetSocketAddress(host, port);
         }
+        this.handler = new ClientHandler();
+    }
+
+    public ClientHandler getHandler() {
+        return handler;
+    }
+
+    public boolean isRuning() {
+        return isRuning;
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
         start();
-        Scanner scanner = new Scanner(System.in);
     }
 
 
@@ -103,7 +116,7 @@ public class Client implements ApplicationContextAware, InitializingBean {
                                 cp.addLast(new Encoder(Task.class));
                                 cp.addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0));
                                 cp.addLast(new Decoder(Status.class));
-                                cp.addLast(new ClientHandler());
+                                cp.addLast(handler);
                             }
                         });
 
@@ -114,6 +127,7 @@ public class Client implements ApplicationContextAware, InitializingBean {
                         if (channelFuture.isSuccess()) {
                             logger.debug("Successfully connect to remote slave. remote peer = " + remotePeer);
                             ClientHandler handler = channelFuture.channel().pipeline().get(ClientHandler.class);
+                            isRuning = false;
                         }
                     }
                 });
@@ -132,7 +146,7 @@ public class Client implements ApplicationContextAware, InitializingBean {
 
     public static void submit(Runnable task) {
         if (threadPoolExecutor == null) {
-            synchronized (Server.class) {
+            synchronized (Client.class) {
                 if (threadPoolExecutor == null) {
                     threadPoolExecutor = new ThreadPoolExecutor(16, 16, 600L,
                             TimeUnit.SECONDS, new ArrayBlockingQueue<Runnable>(65536));

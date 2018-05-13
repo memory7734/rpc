@@ -9,10 +9,15 @@ import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
+import org.quartz.*;
+import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.matchers.KeyMatcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.ExecutionException;
+
+import static org.quartz.JobBuilder.newJob;
 
 
 public class ServerHandler extends SimpleChannelInboundHandler<Task> {
@@ -31,49 +36,65 @@ public class ServerHandler extends SimpleChannelInboundHandler<Task> {
         Server.submit(new Runnable() {
             @Override
             public void run() {
-                System.out.println("接到一个任务");
-                logger.info("Receive Task " + task.getTaskGroup() + task.getTaskID());
+                logger.info("Receive Task " + task.getTaskGroup() + task.getTaskID()+ task.getName());
                 Status status = new Status();
                 status.setTaskID(task.getTaskID());
                 status.setTaskGroup(task.getTaskGroup());
                 try {
-                    status.setResult(handle(task));
+                    JobDetail job = newJob(QuartzJob.class)
+                            .withIdentity(task.getName(), task.getTaskGroup())
+                            .build();
+                    SchedulerFactory sf = new StdSchedulerFactory();
+                    Scheduler scheduler = sf.getScheduler();
+                    scheduler.start();
+                    scheduler.getContext().put("task", task);
+                    scheduler.getContext().put("masterClient", masterClient);
+                    Matcher<JobKey> matcher = KeyMatcher.keyEquals(new JobKey(task.getName(), task.getTaskGroup()));
+                    scheduler.getListenerManager().addJobListener(new JobListener() {
+                        @Override
+                        public String getName() {
+                            return "taskListener";
+                        }
+
+                        @Override
+                        public void jobToBeExecuted(JobExecutionContext context) {
+
+                        }
+
+                        @Override
+                        public void jobExecutionVetoed(JobExecutionContext context) {
+
+                        }
+
+                        @Override
+                        public void jobWasExecuted(JobExecutionContext context, JobExecutionException jobException) {
+                            try {
+                                status.setResult(context.getScheduler().getContext().get("result"));
+                            } catch (SchedulerException e) {
+                                e.printStackTrace();
+                            }
+                            ctx.writeAndFlush(status).addListener(new ChannelFutureListener() {
+                                @Override
+                                public void operationComplete(ChannelFuture future) throws Exception {
+                                    logger.info("send status for task " + task.getTaskGroup() + task.getTaskID()+ task.getName());
+                                }
+                            });
+                        }
+                    }, matcher);
+                    scheduler.scheduleJob(job, task.getTrigger());
                 } catch (Throwable throwable) {
                     status.setError(throwable.toString());
                     logger.error("Server Task handle request error", throwable);
                 }
-                ctx.writeAndFlush(status).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        System.out.println("发出一个反馈");
-                        logger.info("send status for task " + task.getTaskGroup() + task.getTaskID());
-                    }
-                });
             }
         });
     }
-
-    private Object handle(Task task) {
-        Object result = null;
-        try {
-            IAsyncObjectProxy service = masterClient.createAsync(Class.forName(task.getClassName()));
-            MasterFuture future = service.call(task.getMethodName(), task.getParameters());
-            result = future.get();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        } catch (ExecutionException e) {
-            e.printStackTrace();
-        }
-        return result;
-    }
-
-
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         logger.error("Server catch exception", cause);
         ctx.close();
     }
+
+
 }

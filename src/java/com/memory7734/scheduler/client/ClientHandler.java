@@ -9,6 +9,10 @@ import org.slf4j.LoggerFactory;
 
 import java.net.SocketAddress;
 import java.util.Date;
+import java.util.concurrent.CountDownLatch;
+
+import static org.quartz.SimpleScheduleBuilder.simpleSchedule;
+import static org.quartz.TriggerBuilder.newTrigger;
 
 public class ClientHandler extends SimpleChannelInboundHandler<Status> {
     private static final Logger logger = LoggerFactory.getLogger(ClientHandler.class);
@@ -28,38 +32,23 @@ public class ClientHandler extends SimpleChannelInboundHandler<Status> {
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         this.remotePeer = this.channel.remoteAddress();
-        Task task = new Task();
-        task.setTaskGroup("group1");
-        task.setTaskID("0001");
-        task.setUploadTime(new Date());
-
-        task.setClassName("com.memory7734.rpc.test.master.HelloService");
-        task.setMethodName("hello");
-        Object[] parameters = new Object[1];
-        parameters[0] = "王杰";
-        task.setParameters(parameters);
-        Client.submit(new Runnable() {
-            @Override
-            public void run() {
-                System.out.println("发送一个任务");
-                logger.info("Send Task " + task.getTaskGroup() + task.getTaskID());
-                ctx.writeAndFlush(task).addListener(new ChannelFutureListener() {
-                    @Override
-                    public void operationComplete(ChannelFuture future) throws Exception {
-                        logger.info("send task " + task.getTaskGroup() + task.getTaskID());
-                    }
-                });
-            }
-        });
     }
 
     public void sendTask(Task task) {
+        final CountDownLatch latch = new CountDownLatch(1);
         channel.writeAndFlush(task).addListener(new ChannelFutureListener() {
             @Override
             public void operationComplete(ChannelFuture future) throws Exception {
-                logger.info("send task " + task.getTaskGroup() + task.getTaskID());
+                logger.info("send task " + task.getTaskGroup() + task.getTaskID()+ task.getName());
+                latch.countDown();
             }
         });
+        try {
+            latch.await();
+        } catch (InterruptedException e) {
+            logger.error(e.getMessage());
+        }
+
     }
 
     @Override
@@ -71,8 +60,6 @@ public class ClientHandler extends SimpleChannelInboundHandler<Status> {
     @Override
     protected void channelRead0(ChannelHandlerContext ctx, Status status) throws Exception {
         logger.info("Received a Status " + status.toString());
-
-
     }
 
     @Override
